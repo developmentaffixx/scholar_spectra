@@ -1,13 +1,15 @@
 import dotenv from 'dotenv';
+import mysql from 'mysql2/promise';
+
 dotenv.config();
 
 let pool = null;
 let isConnected = false;
 
-// Attempt to load mysql2 dynamically so server doesn't crash if npm install hasn't been run yet
+// Create the connection pool synchronously (no top-level await).
+// Using a static import + createPool keeps this module free of top-level await,
+// which is required by LiteSpeed/Passenger-style CommonJS loaders (Hostinger).
 try {
-  const mysql = await import('mysql2/promise');
-  
   pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -19,7 +21,7 @@ try {
     queueLimit: 0
   });
 
-  // Test the connection
+  // Test the connection in the background (fire-and-forget, no await at top level)
   pool.getConnection()
     .then(conn => {
       console.log('✅ MySQL Connected successfully to database: ' + (process.env.DB_NAME || 'scholar_spectra'));
@@ -32,8 +34,9 @@ try {
       isConnected = false;
     });
 } catch (e) {
-  console.warn('⚠️  mysql2 package not yet installed. Run "npm install mysql2" in backend folder.');
+  console.warn('⚠️  Could not initialize MySQL pool:', e.message);
   console.warn('ℹ️  Server using fallback mode.');
+  pool = null;
 }
 
 export { pool, isConnected };
