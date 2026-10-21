@@ -160,6 +160,19 @@ function writeData(filePath, data) {
 
 // ── API ROUTES ──
 
+// 0. API Root — simple status so hitting /api doesn't return "Cannot GET /api/"
+app.get(['/api', '/api/'], (req, res) => {
+  res.json({
+    status: 'success',
+    service: 'Scholar Spectra API Server v2.0',
+    message: 'API is running',
+    docs: {
+      health: '/api/health'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // 1. Health & Database Check
 app.get('/api/health', async (req, res) => {
   let dbStatus = 'Disconnected / Fallback mode';

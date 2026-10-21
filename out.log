@@ -1,0 +1,10 @@
+=========================================
+🚀 Scholar Spectra API Server (Production v2.0)
+📡 URL: http://localhost:5000
+📧 Notification Target: developmentaffixx@gmail.com
+📊 Google Sheet Target: https://docs.google.com/spreadsheets/d/15kXdBbpO4CHN7_k4n--6zCt7ZxION5svmHtJKqeikSc/edit?usp=sharing
+🗄️  Database Target: scholar_spectra
+📁 Local Data Backup: D:\Company Projects\Scholar Spectra\react folder\backend\data
+📁 Uploads Directory: D:\Company Projects\Scholar Spectra\react folder\backend\uploads
+🔒 Security: Helmet, Rate-Limit, JWT, Bcrypt Active
+=========================================
