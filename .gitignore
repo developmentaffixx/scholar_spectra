@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime data (local JSON/Excel fallback) — do NOT commit real data
+data/*.json
+!data/README.md
+data/sheets/*.xlsx
+scholar_spectra_master.xlsx
+scholar_spectra_leads.csv
+
+# User uploads
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,26 @@
+{
+  "name": "scholar-spectra-backend",
+  "version": "1.0.0",
+  "description": "Scholar Spectra NEET & JEE Academy API Server",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "clean": "node clear_dummy_data.js",
+    "seed": "node seed_5_samples.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "mysql2": "^3.24.4",
+    "nodemailer": "^10.0.10",
+    "xlsx": "^0.18.5"
+  }
+}
