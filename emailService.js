@@ -27,6 +27,31 @@ const BRAND_COLOR = '#0A1628';
 const TEAL_COLOR = '#0D9488';
 const GOLD_COLOR = '#D97706';
 
+// Public URL of the brand logo (served statically by the backend at /assets/logo.png).
+// Set PUBLIC_SERVER_URL in .env to your live backend origin, e.g. https://ssb.affixxmedia.com
+const SERVER_URL = (process.env.PUBLIC_SERVER_URL || 'https://ssb.affixxmedia.com').replace(/\/$/, '');
+const LOGO_URL = `${SERVER_URL}/assets/logo.png`;
+
+// Build a plain-text version of an email. Including a text/plain part alongside
+// the HTML lowers spam scores and helps clients that block images.
+function buildPlainText(intro, details = {}) {
+  const lines = [intro, ''];
+  for (const [k, v] of Object.entries(details)) {
+    if (v) lines.push(`${k}: ${v}`);
+  }
+  lines.push('', '— Scholar Spectra Entrance Training Institute, Puducherry', 'https://scholarspectra.com');
+  return lines.join('\n');
+}
+
+// Reusable logo header block for emails
+const logoHeader = `
+  <tr>
+    <td style="background: #FFFFFF; padding: 20px 30px 10px; text-align: center; border-bottom: 1px solid #E2E8F0;">
+      <img src="${LOGO_URL}" alt="Scholar Spectra" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
+    </td>
+  </tr>
+`;
+
 /**
  * Send admin alert email
  */
@@ -58,6 +83,7 @@ export async function sendAdminAlert({ subject, title, badge, details, rawData =
     </head>
     <body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F1F5F9; color: #1E293B;">
       <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.08);">
+        ${logoHeader}
         <!-- Header -->
         <tr>
           <td style="background: ${BRAND_COLOR}; padding: 26px 30px; text-align: left;">
@@ -127,8 +153,13 @@ export async function sendAdminAlert({ subject, title, badge, details, rawData =
     const info = await transporter.sendMail({
       from: `"Scholar Spectra Desk" <${process.env.SMTP_USER || 'developmentaffixx@gmail.com'}>`,
       to: adminEmail,
+      replyTo: process.env.REPLY_TO_EMAIL || process.env.SMTP_USER || 'developmentaffixx@gmail.com',
       subject,
-      html
+      html,
+      text: buildPlainText(`${title || 'Portal Notification'} — Scholar Spectra`, details),
+      headers: {
+        'X-Entity-Ref-ID': `ss-admin-${Date.now()}`
+      }
     });
     console.log(`✅ [Email Sent] ${subject} to ${adminEmail} (MsgID: ${info.messageId})`);
     return { success: true, messageId: info.messageId };
@@ -153,6 +184,7 @@ export async function sendPasswordResetEmail({ toEmail, resetLink, token }) {
     </head>
     <body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F1F5F9; color: #1E293B;">
       <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 560px; background: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.08);">
+        ${logoHeader}
         <tr>
           <td style="background: ${BRAND_COLOR}; padding: 26px 30px; text-align: left;">
             <div style="display: inline-block; background: ${GOLD_COLOR}; color: #FFFFFF; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px;">
@@ -289,6 +321,7 @@ export async function sendUserThankYouEmail({ toEmail, name, formType, refId, de
     </head>
     <body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F1F5F9; color: #1E293B;">
       <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.08);">
+        ${logoHeader}
         <!-- Top Banner -->
         <tr>
           <td style="background: ${BRAND_COLOR}; padding: 26px 30px; text-align: left;">
@@ -368,8 +401,16 @@ export async function sendUserThankYouEmail({ toEmail, name, formType, refId, de
     const info = await transporter.sendMail({
       from: `"Scholar Spectra Puducherry" <${process.env.SMTP_USER || 'developmentaffixx@gmail.com'}>`,
       to: cleanTo,
+      replyTo: process.env.REPLY_TO_EMAIL || process.env.SMTP_USER || 'developmentaffixx@gmail.com',
       subject: subjectTitle,
-      html
+      html,
+      text: buildPlainText(
+        `Dear ${name || 'Aspirant / Parent'}, thank you for connecting with Scholar Spectra. Your reference number is ${refId}.`,
+        { ...details, 'Reference Number': refId }
+      ),
+      headers: {
+        'X-Entity-Ref-ID': `ss-user-${refId}`
+      }
     });
     console.log(`💌 [User Email Sent] "${subjectTitle}" to ${cleanTo} (${refId}) (MsgID: ${info.messageId})`);
     return { success: true, messageId: info.messageId };

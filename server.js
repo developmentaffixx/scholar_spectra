@@ -70,6 +70,13 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 // Serve uploaded files statically
 app.use('/uploads', express.static(UPLOADS_DIR));
 
+// Serve brand assets (logo used in emails) statically
+const ASSETS_DIR = path.join(__dirname, 'assets');
+if (!fs.existsSync(ASSETS_DIR)) {
+  fs.mkdirSync(ASSETS_DIR, { recursive: true });
+}
+app.use('/assets', express.static(ASSETS_DIR));
+
 // File Upload Handler (Multer) for Payment Receipts & Resumes
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -131,6 +138,7 @@ const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const SSAT_FILE = path.join(DATA_DIR, 'ssat.json');
 const PAYMENT_FILE = path.join(DATA_DIR, 'payments.json');
 const CAREERS_FILE = path.join(DATA_DIR, 'careers.json');
+const COUNTERS_FILE = path.join(DATA_DIR, 'counters.json');
 
 // Helper to read JSON safely (fallback)
 function readData(filePath, defaultVal = []) {
@@ -156,6 +164,29 @@ function writeData(filePath, data) {
     console.error(`Error writing to ${filePath}:`, err);
     return false;
   }
+}
+
+// ── Sequential Reference ID Generator ──
+// Produces clean running IDs per form type, e.g. AD-EQ-0001, SSAT-RG-0001, FEE-PAY-0001.
+// The next number per prefix is persisted in data/counters.json so IDs never repeat,
+// even after a server restart.
+const REF_PREFIXES = {
+  enquiry: 'AD-EQ',
+  ssat: 'SSAT-RG',
+  payment: 'FEE-PAY',
+  careers: 'FAC-AP'
+};
+
+function nextReferenceId(type) {
+  const prefix = REF_PREFIXES[type] || 'SS';
+  const counters = readData(COUNTERS_FILE, {});
+  const current = Number.isInteger(counters[prefix]) ? counters[prefix] : 0;
+  const next = current + 1;
+  counters[prefix] = next;
+  writeData(COUNTERS_FILE, counters);
+  // Zero-pad to 4 digits (0001); grows automatically past 9999.
+  const padded = String(next).padStart(4, '0');
+  return `${prefix}-${padded}`;
 }
 
 // ── API ROUTES ──
@@ -215,13 +246,13 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 // 3. Submit Admission Enquiry (Sheet 1: Admission Enquiries)
 app.post('/api/enquiry', formSubmissionLimiter, async (req, res) => {
-  const { referenceId, name, phone, email, course, targetClass, hostelNeeded, city, notes, message, source, studentType } = req.body;
+  const { name, phone, email, course, targetClass, hostelNeeded, city, notes, message, source, studentType } = req.body;
 
   if (!name || !phone) {
     return res.status(400).json({ success: false, error: 'Name and phone are required.' });
   }
 
-  const refId = referenceId || `SS-ENQ-${Math.floor(10000 + Math.random() * 90000)}`;
+  const refId = nextReferenceId('enquiry');
   const cleanName = name.trim();
   const cleanPhone = phone.trim();
   const cleanCourse = course || 'Regular NEET for 11th and 12th';
@@ -448,13 +479,13 @@ app.patch('/api/enquiries/:id', authenticateAdmin, async (req, res) => {
 
 // 6. Submit SSAT Scholarship Registration (Sheet 2: SSAT Registrations)
 app.post('/api/ssat', formSubmissionLimiter, async (req, res) => {
-  const { referenceId, name, phone, email, targetClass, courseStream, testMode, examDate, city } = req.body;
+  const { name, phone, email, targetClass, courseStream, testMode, examDate, city } = req.body;
 
   if (!name || !phone) {
     return res.status(400).json({ success: false, error: 'Name and phone are required.' });
   }
 
-  const refId = referenceId || `SSAT-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+  const refId = nextReferenceId('ssat');
   const cleanName = name.trim();
   const cleanPhone = phone.trim();
   const cleanClass = targetClass || 'Class 12 Passed / Repeater';
@@ -586,13 +617,13 @@ app.get('/api/ssat', authenticateAdmin, async (req, res) => {
 
 // 8. Submit Online Fee Payment Verification (Sheet 3: Fee Payments)
 app.post('/api/payment', formSubmissionLimiter, async (req, res) => {
-  const { referenceId, name, phone, email, feeType, amount, utrNumber, receiptFile, city, paymentDate } = req.body;
+  const { name, phone, email, feeType, amount, utrNumber, receiptFile, city, paymentDate } = req.body;
 
   if (!name || !phone || !utrNumber) {
     return res.status(400).json({ success: false, error: 'Name, phone and UTR number are required.' });
   }
 
-  const refId = referenceId || `SS-PAY-${Math.floor(100000 + Math.random() * 900000)}`;
+  const refId = nextReferenceId('payment');
   const cleanName = name.trim();
   const cleanPhone = phone.trim();
   const cleanEmail = email ? email.trim() : '';
@@ -739,13 +770,13 @@ app.get('/api/payments', authenticateAdmin, async (req, res) => {
 
 // 10. Submit Faculty & Careers Application (Sheet 4: Careers & Faculty)
 app.post('/api/careers', formSubmissionLimiter, async (req, res) => {
-  const { referenceId, name, phone, email, position, subject, experience, qualification, location, resumeUrl, coverNote } = req.body;
+  const { name, phone, email, position, subject, experience, qualification, location, resumeUrl, coverNote } = req.body;
 
   if (!name || !phone || !email) {
     return res.status(400).json({ success: false, error: 'Name, phone, and email are required.' });
   }
 
-  const refId = referenceId || `SS-CAREER-${Math.floor(10000 + Math.random() * 90000)}`;
+  const refId = nextReferenceId('careers');
   const cleanName = name.trim();
   const cleanPhone = phone.trim();
   const cleanEmail = email.trim();
