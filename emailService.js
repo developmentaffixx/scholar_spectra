@@ -1,7 +1,12 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Create transporter
 function getTransporter() {
@@ -28,9 +33,36 @@ const TEAL_COLOR = '#0D9488';
 const GOLD_COLOR = '#D97706';
 
 // Public URL of the brand logo (served statically by the backend at /assets/logo.png).
+// Kept only as a fallback link; the logo is primarily embedded inline (see below).
 // Set PUBLIC_SERVER_URL in .env to your live backend origin, e.g. https://ssb.affixxmedia.com
 const SERVER_URL = (process.env.PUBLIC_SERVER_URL || 'https://ssb.affixxmedia.com').replace(/\/$/, '');
 const LOGO_URL = `${SERVER_URL}/assets/logo.png`;
+
+// Inline the brand logo as a CID attachment so it renders in email clients
+// (Gmail, Outlook, etc.) that block remotely-hosted <img> URLs by default.
+const LOGO_CID = 'ss-logo';
+const LOGO_PATH = path.join(__dirname, 'assets', 'logo.png');
+
+let LOGO_BUFFER = null;
+try {
+  LOGO_BUFFER = fs.readFileSync(LOGO_PATH);
+} catch (err) {
+  console.warn(`⚠️ [Email] Logo not found at ${LOGO_PATH}; falling back to remote URL. (${err.message})`);
+}
+
+// Nodemailer attachment array that embeds the logo inline when available.
+// When the file is missing, the <img> gracefully falls back to the remote URL.
+const LOGO_ATTACHMENTS = LOGO_BUFFER
+  ? [{
+      filename: 'logo.png',
+      content: LOGO_BUFFER,
+      cid: LOGO_CID,
+      contentType: 'image/png'
+    }]
+  : [];
+
+// The <img> source: inline CID when embedded, otherwise the remote URL.
+const LOGO_SRC = LOGO_BUFFER ? `cid:${LOGO_CID}` : LOGO_URL;
 
 // Build a plain-text version of an email. Including a text/plain part alongside
 // the HTML lowers spam scores and helps clients that block images.
@@ -47,7 +79,7 @@ function buildPlainText(intro, details = {}) {
 const logoHeader = `
   <tr>
     <td style="background: #FFFFFF; padding: 20px 30px 10px; text-align: center; border-bottom: 1px solid #E2E8F0;">
-      <img src="${LOGO_URL}" alt="Scholar Spectra" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
+      <img src="${LOGO_SRC}" alt="Scholar Spectra" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
     </td>
   </tr>
 `;
@@ -157,6 +189,7 @@ export async function sendAdminAlert({ subject, title, badge, details, rawData =
       subject,
       html,
       text: buildPlainText(`${title || 'Portal Notification'} — Scholar Spectra`, details),
+      attachments: LOGO_ATTACHMENTS,
       headers: {
         'X-Entity-Ref-ID': `ss-admin-${Date.now()}`
       }
@@ -255,7 +288,8 @@ export async function sendPasswordResetEmail({ toEmail, resetLink, token }) {
       from: `"Scholar Spectra Security" <${process.env.SMTP_USER || 'developmentaffixx@gmail.com'}>`,
       to: toEmail,
       subject: 'Scholar Spectra Staff Portal — Reset Your Password',
-      html
+      html,
+      attachments: LOGO_ATTACHMENTS
     });
     console.log(`✅ [Reset Email Sent] to ${toEmail}`);
     return { success: true, messageId: info.messageId };
@@ -408,6 +442,7 @@ export async function sendUserThankYouEmail({ toEmail, name, formType, refId, de
         `Dear ${name || 'Aspirant / Parent'}, thank you for connecting with Scholar Spectra. Your reference number is ${refId}.`,
         { ...details, 'Reference Number': refId }
       ),
+      attachments: LOGO_ATTACHMENTS,
       headers: {
         'X-Entity-Ref-ID': `ss-user-${refId}`
       }
