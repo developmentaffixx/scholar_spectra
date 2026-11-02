@@ -138,6 +138,10 @@ const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 const SSAT_FILE = path.join(DATA_DIR, 'ssat.json');
 const PAYMENT_FILE = path.join(DATA_DIR, 'payments.json');
 const CAREERS_FILE = path.join(DATA_DIR, 'careers.json');
+const STATS_FILE = path.join(DATA_DIR, 'site_stats.json');
+
+// Default achievement stats
+const DEFAULT_STATS = { mbbs: 1702, jipmer: 131, nit: 97, iit: 41 };
 const COUNTERS_FILE = path.join(DATA_DIR, 'counters.json');
 
 // Helper to read JSON safely (fallback)
@@ -1093,6 +1097,32 @@ app.get('/api/export/csv', authenticateAdmin, async (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="scholar_spectra_leads.csv"');
   res.status(200).send(csvContent);
+});
+
+// 18. Public: Get Site Achievement Stats
+app.get('/api/site-stats', (req, res) => {
+  const stats = readData(STATS_FILE, DEFAULT_STATS);
+  // Ensure all keys exist (backward-compat if file predates a key)
+  const merged = { ...DEFAULT_STATS, ...stats };
+  res.json({ success: true, stats: merged });
+});
+
+// 19. Admin: Update Site Achievement Stats (Protected by JWT)
+app.put('/api/site-stats', authenticateAdmin, (req, res) => {
+  const { mbbs, jipmer, nit, iit } = req.body;
+
+  const mbbs_n  = parseInt(mbbs,  10);
+  const jipmer_n = parseInt(jipmer, 10);
+  const nit_n   = parseInt(nit,   10);
+  const iit_n   = parseInt(iit,   10);
+
+  if ([mbbs_n, jipmer_n, nit_n, iit_n].some(v => isNaN(v) || v < 0)) {
+    return res.status(400).json({ success: false, error: 'All four stats must be non-negative whole numbers.' });
+  }
+
+  const updated = { mbbs: mbbs_n, jipmer: jipmer_n, nit: nit_n, iit: iit_n };
+  writeData(STATS_FILE, updated);
+  res.json({ success: true, message: 'Achievement stats updated successfully.', stats: updated });
 });
 
 // Start Server
